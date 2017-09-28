@@ -1,0 +1,204 @@
+
+
+
+
+
+openwsn-fw/build/python_gcc/projects/common/03oos_openwsn/03oos_openwsn.c
+openwsn-fw/build/python_gcc/projects/common/03oos_openwsn/oenwsnmodule.c
+openwsn-fw/build/python_gcc/projects/drivers/common/openserial.h (.c)
+openwsn-fw/projects/python/test_openwsn.py
+openwsn-fw/projects/python/Sconscript.env
+scheduler_init()  ,  scheduler_vars , scheduler_vars_t , scheduler_start()
+
+INTERRUPT_ENABLE() .......
+
+
+-----------------------------------python_vs13/03oos_openwsn.ewp-------------
+
+build/python_gcc/openwsn/02a-MAClow/adaptive_sync_obj.c
+build/python_gcc/bsp/boards/python/board_obj.c
+build/python_gcc/bsp/boards/python/bsp_timer_obj.c
+build/python_gcc/bsp/boards/python/debugpins_obj.c
+...............................................................................
+
+fw/drivers/common/openserial.c
+openserial_init()  --> isr_openserial_tx , isr_openserial_rx -->openserial_stop() --> openserial_vars.registeredCmd->cb() , openserial_handleCommands() --> 
+commandId :
+			COMMAND_SET_EBPERIOD --> sixtop_setEBPeriod
+			COMMAND_SET_CHANNEL  --> ieee154e_setSingleChannel
+			COMMAND_SET_KAPERIOD --> sixtop_setKaPeriod(comandParam_16)
+			COMMAND_SET_DIOPERIOD --> icmpv6rpl_setDIOPeriod
+			COMMAND_SET_DAOPERIOD --> icpv6rpl_setDAOPeriod
+			COMMAND_SET_DAGRANK  -->  icpv6rpl_setMyDAGrank
+			COMMAND_SET_SECURITY_STATUS --> ieee154e_setIsSecurityEnabled
+			COMMAND_SET_SLOTFRAMELENGTH --> schedule_setFrameLength
+			COMMAND_SET_ACK_STATUS      --> ieee154e_setIsAckEnabled
+			COMMAND_SET_6P_ADD			-->nope
+			COMMAND_SET_6P_DELETE		-->nope
+			COMMAND_SET_6P_RELOCATE		-->nope
+			COMMAND_SET_6P_COUNT		-->nope
+			COMMAND_SET_6P_LIST			-->nope
+			COMMAND_SET_6P_CLEAR--> openserial_get6pInfo,sixtop_request
+			COMMAND_SET_SLOTDURATION    --> ieee154e_setSlotDuration
+			COMMAND_SET_6PRESPONSE		--> sixtop_setIsResponseEnabled
+			COMMAND_SET_UINJECTPERIOD	--> sf0_appPktPeriod
+			COMMAND_SET_ECHO_REPLY_STATUS --> icmpv6echo_setIsReplyEnable	
+			
+			COMMAND_SET_6P_DELETE
+
+--------------------------------------------------------------------------------
+			VERY VERY IMPORTANT
+
+openwsn-fw/build/python_gcc/bsp/board/python/openwsnmodule_obj.h 
+  ---------->  something like this --> MOTE_NOTIF_OOXX  
+--------------->  openwsn-fw/projects/python/test_openwsn
+				--------->   notifString(#20)
+				--------->   notifId
+
+
+--------------> openwsn-sw/software/openvisualizer/openvisualizer/SimEngine/MoteHandler.py
+				mote.set_callback(notifId(OOOXX) , self.bspBoard.cmd_init)
+
+-----------------------------set_callback function is .....
+---------------> openwsn-fw/bsp/boards/python/openwsnmodule.c
+						OpenMote_set_callback(OpenMote* , PyObject*)
+
+-------------------------------------------------------------------------------
+File "bin/openVisualizerApp/openVisualizerWeb.py", line 624, in <module>
+    app      = openVisualizerApp.main(parser, argspace.roverMode)
+  File "/home/eric/Desktop/openwsn-original/openwsn-sw/software/openvisualizer/bin/openVisualizerApp/openVisualizerApp.py", line 355, in main
+    roverMode       = roverMode
+  File "/home/eric/Desktop/openwsn-original/openwsn-sw/software/openvisualizer/bin/openVisualizerApp/openVisualizerApp.py", line 91, in __init__
+    moteHandler       = MoteHandler.MoteHandler(oos_openwsn.OpenMote())
+  File "/home/eric/Desktop/openwsn-original/openwsn-sw/software/openvisualizer/openvisualizer/SimEngine/MoteHandler.py", line 92, in __init__
+-------------------------------------------------------------------------------
+
+PymethodDef:
+		set_callback
+--------------------------------------------------------------------------------
+		radio_isr_startFrame -->radio_intr_startOfFrame
+							 --> radio_icb.startFrame_cb
+							 -->radio_capture_cbt --> function void pointer
+												  
+							 
+		
+--------------------------------------------------------------------------------
+		radio_isr_endFrame
+			same us startFrame
+--------------------------------------------------------------------------------	
+		scheduleIn(id,duration,unit,time,event)-->{
+			sctimer_setCompare(time) --> timeline.scheduleEvent -->sctimer_isr()
+
+			(set this one) opentimers_vars.timerBuf[id]
+			
+		sctimer_isr --> sctimer_intr_compare --> sctimer_icb.compare_cb
+		
+		(sctimer_set_callback assign sctimer_icb.compare_cb
+		 <-- opentimers_init()(sctimer_set_callback(opentimers_timer_callback) <--  (03oos_sniffer,03oos_mercator,openstack.c) mote_main()  <-- supply_on
+
+		opentimers_timer_callback --> call opentimers_vars.timerBuf !! GOOD!! and this is assigned by scheduleIn already.
+		
+--------------------------------------------------------------------------------
+		uart_isr_tx-->uart_intr_tx (bsp/boards/python/openwsnmodule.c)
+				   -->uart_icb.txCb(self) (uart_obj.c)
+		(uart_setCallbacks  -->  uart_icb.txCb = txCb (uart_tx_cbt) 
+				   			-->  uart_tx_cbt --> function void pointer)
+		
+		uart_setCallbacks   <--  openserial.c ( openserial.init() ) 
+							<--  openstack.c ( openstack.init() )
+							<--  mote_main
+							<--  supply_on
+		<-- HwSupply.py  ( software/openvisulizer/openvisulizer/BspEmulator)
+--------------------------------------------------------------------------------
+		uart_isr_rx--> uart_intr_rx --> uart_icb.rxCb(self)
+		(uart_setCallbacks  -->  uart_icb.txCb = txCb (uart_tx_cbt)
+                            -->  uart_tx_cbt --> function void pointer)
+
+        uart_setCallbacks   <--  openserial.c ( openserial.init() )
+                            <--  openstack.c ( openstack.init() )
+                            <--  mote_main
+                            <--  supply_on
+        <-- HwSupply.py  ( software/openvisulizer/openvisulizer/BspEmulator)
+		<-- switchOn()  <-- MoteHandler.py
+--------------------------------------------------------------------------------
+		
+		supply_on
+		supply_off
+
+
+
+--------------------------------------------------------------------------------
+		MoteHandler --> set_callback 
+		indicateNewMote --> createConnection(FREQUENCY ,dbm ,hackloss ,sense...)
+		moteProbes  -->
+
+
+
+
+openVisualizerApp L68 --> self.simengine.start() -->SimeEngine.py :99 ->timeline.start() --> while true loop
+
+--------------------------------------------------------------------------------
+		timeline sequence:
+			executing hw_supply.switchOn@1,2,3
+					  sctimer.compare(many time)
+						^
+						|
+						|
+						v
+					  uart.tx@1,2,3
+				  	  
+					  radio.startofframe_fromMote
+					  radio.startofframe_fromPropagation@2
+				 	  radio.endofframe_fromeMote@1
+					  radio.endofframe_fromPropagation@2	
+--------------------------------------------------------------------------------          SOLUTION:
+
+
+1. openVisualizerApp{
+		Simengine.start()  --> timeline.start() -->block (acquire schedule)
+		moteHandler   --> moterHandler(oos_openwsn.OpenMote)  (initialize mote)
+		scheduleEvent(switchOn)  --> timeline run --> supply_on
+		--> call function which is in callback(which is assigned by MoteHandler.init) sctimer and .......................  go to fw
+
+	}	
+
+
+supply_on{
+	board_init{
+		debugpins_init		
+		leds_init
+		sctimer_init --> overflow event
+		uart_init
+		radio_init
+	}
+	
+	openstack_init{
+	
+	}
+
+	
+	scheduler_init{ none}
+	
+	scheduler_start{
+		
+	}
+}
+--------------------------------------------------------------------------------
+
+sixtop_init()  -->  scheduleIn(eb) , scheduleIn(maintenance) --> opentimer_cb -->opentimer_init
+			   
+				sixtop_request -->IEEE80215E
+
+
+sf0_init()  --> sixtop_setSFcallback(many functions) --> make sixtop_vars.OOXXOX			<-- sixtop_request <--	IEEE80215E
+
+ieee154e_init() --> radio_rfOn() --> (sw)cmd_rfOn (self.isRfOn) --> radio_setStartFrameCb(ieee154e_startOfFrame,ieee154e_endOfFrame) --> opentimers_setPriority(ieee154e_vars)(set highest priority)-->scheduleAbsolute(isr_ieee154e_newSlot) --> loop scheduleAbsolute() -->
+
+--------------------------------------------------------------------------------
+sf0_estimatechannel --> sf0_candidateAddCelllist  -- > this is important what i want to fuck the offset things.
+
+--------------------------------------------------------------------------------
+ICMPv6rol -->scheduleIn
+sixtop	--> scheduleIn
+opentcp	--> scheduleIn,scheduleAbsolute
+
