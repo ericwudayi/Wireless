@@ -19,7 +19,7 @@ tmp_antennaPos2Vel = zeros(rowNum, columnNum, 3);
 
 %add new distr
 dist_limit_min = sys.dist_limit_min;
-dist_limit_max = 10;
+dist_limit_max = 100;
 phi_limit_min = 0;
 phi_limit_max = 360;
 %add new distr
@@ -92,7 +92,7 @@ isite = 1; % for one site now
          
         optimP = (x*(x_dest-x) + y*(y_dest-y))/(a^2 + b^2); %solution of minimum point 
          %from BS to UE moving line
-         
+        %{ 
         while((destDist < dist_limit_min ) || (optimP < 0 && optimP > -1 && distBS2Route < dist_limit_min)) 
             %-1<optimP<0 mean solution exist
             %random destination again
@@ -108,6 +108,7 @@ isite = 1; % for one site now
             optimP = (x*(x_dest-x) + y*(y_dest-y))/(a^2 + b^2);
          
         end
+	%}
         UE(tempIndex).endPoint = ...
           [ x_dest + sys.siteLocation(isite,1),  y_dest+sys.siteLocation(isite,2),  sys.ueHeight];
         

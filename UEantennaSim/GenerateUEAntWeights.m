@@ -27,7 +27,7 @@ iniAntennaWeight = iniAntennaWeight./sqrt(UEAntNum);
 tmp_UEAntennaWeights = zeros(1,UEAntNum);
 
   for iA = 1:HorizBeamNum
-     for irow = 1:UEAntRowNum;
+     for irow = 1:UEAntRowNum
         tmp_antennaWeights = iniAntennaWeight(irow,:).*exp(1i*2*pi*sys.UEantennaSpacing...
         *( (UEAntRowNum-irow)*sind(downtiltAngle)-cosd(downtiltAngle)*(elementColumnIndex-1)*sind(steeringAngle(iA)) )/sys.lambda);
        
