@@ -6,17 +6,17 @@ function [ CHANNEL ] = ChannelInitial( sys,ch, Mo, cell,ue )
     %for each pair of cell,ue
     for iue = 1:sys.totalUENum
 	%simulate for LOS , calculate distance for probability
-	distance2D = norm(sys.siteLocation(1:2)-ue.posi(1:2));
+	distance2D = norm(sys.siteLocation(1:2)-ue(iue).pos(1:2));
 	P_LOS = 0;
         for icell = 1:sys.cellNum     
             
             %   pathloss & shadowing factor & smallscale
             if( mod(icell,3) == 1)
 	    %   cauculate the probability of LOS.
-		  if distance<=18
+		  if distance2D<=18
 		      P_LOS = 1;   
 		  else
-		      P_LOS=18/distance+exp(-distance/36)*(1-18/distance);
+		      P_LOS=18/distance2D+exp(-distance2D/36)*(1-18/distance2D);
 		      random = rand;
 		      if random > P_LOS
 		  	P_LOS = 0;
@@ -41,6 +41,8 @@ function [ CHANNEL ] = ChannelInitial( sys,ch, Mo, cell,ue )
                       CHANNEL(icell,iue).pathLoss = GenerateLOSPathLoss(sys,icell,ue(iue));
 		      CHANNEL(icell,iue).shadow = randn()*ch.LOSSF;
 		      
+                      [ smallScale ] =GenerateLOSSmallScale(sys,ch,cell(icell),ue(iue)); 
+		 end 
             else
                 CHANNEL(icell,iue) = CHANNEL(icell-1,iue);
             end

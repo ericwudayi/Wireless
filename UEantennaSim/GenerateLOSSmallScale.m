@@ -1,4 +1,4 @@
-function [ smallScale ] = GenerateSmallScale( ch,celli,uei )
+function [ smallScale ] = GenerateLOSSmallScale(sys, ch,celli,uei )
 % Generate small scale parameters for generating scatters' positions.
 % small scale parameters: PathDelay, subpathAoA,AoD,EoA,EoD.
 
@@ -19,17 +19,20 @@ smallScale.centralEoD =90+ atand((BS.pos(3)-UE.pos(3)) / norm([BS.pos(1)-UE.pos(
 smallScale.centralEoA = 180 - smallScale.centralEoD; % EoA = 180-EoD
 
 % Generate subpath angles
+
     ray_offset_angle_range = [0.0447 -0.0447 0.1413 -0.1413 0.2492 -0.2492 0.3715 -0.3715 0.5129 -0.5129 0.6797 -0.6797 0.8844 -0.8844 1.1481 -1.1481 1.5195 -1.5195 2.1551 -2.1551];
     ZoDrmsSpread = 3/8 * 10^(-3.1*norm(BS.pos(1:2)-UE.pos(1:2))/1000+0.2);
+
+%{
     %ray_offset_angle_range = zeros(1,20);%debug
 for i = 1:clusterN 
         smallScale.subpathAoA(i,:) = smallScale.centralAoA(i) + ch.UErmsAngularSpread.Horiz * ray_offset_angle_range;
         smallScale.subpathAoD(i,:) = smallScale.centralAoD(i) + ch.BSrmsAngularSpread.Horiz * ray_offset_angle_range;
         
 end
-
+%}
 for i = 1:clusterN
-    smallScale.subpathEoA(i,:) = smallScale.centralEoA + ch.UErmsAngularSpread.Vert * ray_offset_angle_range;
+    %smallScale.subpathEoA(i,:) = smallScale.centralEoA + ch.UErmsAngularSpread.Vert * ray_offset_angle_range;
     smallScale.subpathEoD(i,:) = smallScale.centralEoD + ZoDrmsSpread * ray_offset_angle_range;
 
 end
@@ -55,15 +58,143 @@ smallScale.PathDelay = PathDelay;
 smallScale.PathPw = PathPw;
 
 
-end
 
 %Generate central angle of AoA AoD AsA AsD
-avergeAsA  = -0.08*log10(1+sys.freq/10^9)+1.73;
-sigmalAsA  = 0.014*log10(1+sys.freq/10^9)+0.28;
+%AOA, AOD
+
+avergeAsA  = 10.^(-0.08*log10(1+sys.freq/10^9)+1.73);
+sigmalAsA  = 10.^(0.014*log10(1+sys.freq/10^9)+0.28);
+avergeAsD  = 10.^(-0.05*log10(1+sys.freq/10^9)+1.21);
+sigmalAsD  = 0.41;
+AoA_rms = ch.UErmsAngularSpread.Horiz
+AoD_rms = ch.BSrmsAngularSpread.Horiz
+smallScale.subpathAoA=GenerateSubpathPara(ch,avergeAsA,sigmalAsA ,P_pw,AoA_rms)
+smallScale.subpathAoD=GenerateSubpathPara(ch,avergeAsD,sigmalAsD ,P_pw,AoD_rms)
+
+avergeZsA  = 10.^(-0.1*log10(1+sys.freq/10^9)+0.73);
+sigmalZsA  = 10.^(-0.04*log10(1+sys.freq/10^9)+0.34);
+%avergeZsD  = 10.^(-0.05*log10(1+sys.freq/10^9)+1.21);
+%sigmalZsD  = 0.41;
+ZoA_rms = ch.UErmsAngularSpread.Vert
+%ZoD_rms = ch.BSrmsAngularSpread.Vert
+smallScale.subpathZoA=GenerateSubpathPara2(ch,avergeZsA,sigmalZsA ,P_pw,ZoA_rms)
+%smallScale.subpathZoD=GenerateSubpathPara2(ch,avergeZsD,sigmalZsD ,P_pw,ZoD_rms)
+%{
 LOS_C = 1.035-0.028*K_factor-0.002*K_factor^2+0.0001*K_factor^3;
-C_phi = 0.860*LOS_C;
-ASA = normrnd(avergeAsD,sigmalAsD,[1 clusterN]);
-smallScale.centralAoD = 2*ASA/1.4*sqrt(log(P_pw/max(P_pw)))/C_phi;
+C_phi = 0.860*LOS_C;  %0.860 for 5 clusters
+ASA = normrnd(avergeAsA,sigmalAsA,[1 clusterN]);
+ASD = normrnd(avergeAsD,sigmalAsD,[1 clusterN]);
+
+centralAoA = 2*ASA/1.4*sqrt(log(P_pw/max(P_pw)))/C_phi;
+centralAoD = 2*ASD/1.4*sqrt(log(P_pw/max(P_pw)))/C_phi;
+
+% Some special parameter for LOS
+X_n = rand([1 clusterN]);
+X_n(X_n>0.5)=1;
+X_n(X_n<=0.5)=-1;
+Y_n = normrnd(0,(ASA/7)^2);
+%AoA for general case
+centralAoA = centralAoA.*X_n + Y_n
+% Some special parameter for LOS
+X_n = rand([1 clusterN]);
+X_n(X_n>0.5)=1;
+X_n(X_n<=0.5)=-1;
+Y_n = normrnd(0,(ASD/7)^2);
+%AoA for general case
+centralAoD = centralAoD.*X_n + Y_n
+
+%AoA for LOS , which means the first cluster is LOS:
+centralAoA = centralAoA - centralAoA(1);
+centralAoD = centralAoD - centralAoD(1);
+smallScale.centralAoA = centralAoA;
+smallScale.centralAoD = centralAoD;
+ray_offset_angle_range = [0.0447 -0.0447 0.1413 -0.1413 0.2492 -0.2492 0.3715 -0.3715 0.5129 -0.5129 0.6797 -0.6797 0.8844 -0.8844 1.1481 -1.1481 1.5195 -1.5195 2.1551 -2.1551];
+
+for i = 1:clusterN 
+        smallScale.subpathAoA(i,:) = smallScale.centralAoA(i) + ch.UErmsAngularSpread.Horiz * ray_offset_angle_range;
+        smallScale.subpathAoD(i,:) = smallScale.centralAoD(i) + ch.BSrmsAngularSpread.Horiz * ray_offset_angle_range;
+        
+end
+%}
+function [subpathPara]=GenerateSubpathPara(ch,averge , sigmal , P_pw, rms)
+K_factor = ch.K
+clusterN = ch.LOSClusterNum;
+LOS_C = 1.035-0.028*K_factor-0.002*K_factor^2+0.0001*K_factor^3;
+C_phi = 0.860*LOS_C;  %0.860 for 5 clusters
+Para = normrnd(averge,sigmal,[1 clusterN]);
+
+centralPara = 2/1.4*Para.*sqrt(log(P_pw/max(P_pw)))/C_phi;
+
+% Some special parameter for LOS
+X_n = rand([1 clusterN]);
+X_n(X_n>0.5)=1;
+X_n(X_n<=0.5)=-1;
+Y_n = normrnd(0,(Para/7).^2);
+%AoA for general case
+centralPara = centralPara.*X_n + Y_n
+
+centralPara = centralPara - centralPara(1);
+ray_offset_angle_range = [0.0447 -0.0447 0.1413 -0.1413 0.2492 -0.2492 0.3715 -0.3715 0.5129 -0.5129 0.6797 -0.6797 0.8844 -0.8844 1.1481 -1.1481 1.5195 -1.5195 2.1551 -2.1551];
+
+for i = 1:clusterN 
+        subpathPara(i,:) = centralPara(i) + rms * ray_offset_angle_range;
+        
+end
+
+function [subpathPara]=GenerateSubpathPara2(ch,averge , sigmal , P_pw, rms)
+K_factor = ch.K
+clusterN = ch.LOSClusterNum;
+LOS_C = 1.3086+0.0339*K_factor-0.0077*K_factor^2+0.0002*K_factor^3;
+C_phi = 0.860*LOS_C;  %0.860 for 5 clusters
+Para = laprnd(1,clusterN,averge,sigmal);
+
+centralPara = -Para.*(log(P_pw/max(P_pw)))/C_phi;
+
+% Some special parameter for LOS
+X_n = rand([1 clusterN]);
+X_n(X_n>0.5)=1;
+X_n(X_n<=0.5)=-1;
+Y_n = normrnd(0,(Para/7).^2);
+%AoA for general case
+centralPara = centralPara.*X_n + Y_n
+
+centralPara = centralPara - centralPara(1);
+ray_offset_angle_range = [0.0447 -0.0447 0.1413 -0.1413 0.2492 -0.2492 0.3715 -0.3715 0.5129 -0.5129 0.6797 -0.6797 0.8844 -0.8844 1.1481 -1.1481 1.5195 -1.5195 2.1551 -2.1551];
+
+for i = 1:clusterN 
+        subpathPara(i,:) = centralPara(i) + rms * ray_offset_angle_range;
+        
+end
 
 
+function y  = laprnd(m, n, mu, sigma)
+%LAPRND generate i.i.d. laplacian random number drawn from laplacian distribution
+%   with mean mu and standard deviation sigma. 
+%   mu      : mean
+%   sigma   : standard deviation
+%   [m, n]  : the dimension of y.
+%   Default mu = 0, sigma = 1. 
+%   For more information, refer to
+%   http://en.wikipedia.org./wiki/Laplace_distribution
+
+%   Author  : Elvis Chen (bee33@sjtu.edu.cn)
+%   Date    : 01/19/07
+
+%Check inputs
+if nargin < 2
+    error('At least two inputs are required');
+end
+
+if nargin == 2
+    mu = 0; sigma = 1;
+end
+
+if nargin == 3
+    sigma = 1;
+end
+
+% Generate Laplacian noise
+u = rand(m, n)-0.5;
+b = sigma / sqrt(2);
+y = mu - b * sign(u).* log(1- 2* abs(u));
 

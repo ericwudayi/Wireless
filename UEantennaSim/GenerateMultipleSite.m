@@ -16,7 +16,7 @@ ConfigSYS.siteLocation = ...
    
     %noisedBm = 10*log10(ConfigSYS.bandwidth) + ConfigSYS.GaussianNoiseIndBm;
    
-    
+   %{ 
     for timeSlot = 1:ConfigMo.totalTimeSlots  % 1 timeslot = timelength (s)     
         
        
@@ -31,7 +31,7 @@ ConfigSYS.siteLocation = ...
             [ UE(iue).servingCellBeam, UE(iue).signalStatus, UE(iue).rssi, CELL] = DynamicAssociation(ConfigSYS,ConfigCH,UE(iue),CHANNEL,CELL,BSAntWeights,UEAntWeights);
         end
         
-
+     %}
         
         %add ref & scheduling
         
