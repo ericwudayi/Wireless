@@ -11,11 +11,11 @@ h_E = 1;
 velocity = 3*10^8;
 h_BS = sys.siteLocation(3) - h_E;
 h_UT = uePos(3) - h_E;
-d_BP = 4*h_BS*h_UT*sys.freq/velocity
+d_BP = 4*h_BS*h_UT*sys.freq/velocity;
 % LOS formula:
 if distance2D >= 10 && distance2D < d_BP
 
-pathLoss = 32.4+ 21*log10(distance3D)+ 20*log10(sys.freq/(10^9))
+pathLoss = 32.4+ 21*log10(distance3D)+ 20*log10(sys.freq/(10^9));
 
 else
 

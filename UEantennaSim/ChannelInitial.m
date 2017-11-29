@@ -9,19 +9,22 @@ function [ CHANNEL ] = ChannelInitial( sys,ch, Mo, cell,ue )
 	distance2D = norm(sys.siteLocation(1:2)-ue(iue).pos(1:2));
 	P_LOS = 0;
         for icell = 1:sys.cellNum     
-            
+            CHANNEL(icell,iue).P_LOS = 0;
             %   pathloss & shadowing factor & smallscale
             if( mod(icell,3) == 1)
 	    %   cauculate the probability of LOS.
 		  if distance2D<=18
-		      P_LOS = 1;   
+		      P_LOS = 1;
+		      CHANNEL(icell,iue).P_LOS = 1;  
 		  else
-		      P_LOS=18/distance2D+exp(-distance2D/36)*(1-18/distance2D);
+		      %P_LOS=18/distance2D+exp(-distance2D/36)*(1-18/distance2D);
 		      random = rand;
 		      if random > P_LOS
-		  	P_LOS = 0;
+			P_LOS = 0;
+		  	CHANNEL(icell,iue).P_LOS = 0;
 		      else
 			P_LOS = 1;
+			CHANNEL(icell,iue).P_LOS = 1; 
 		      end
 		  end
 		  if P_LOS ==0
@@ -40,9 +43,15 @@ function [ CHANNEL ] = ChannelInitial( sys,ch, Mo, cell,ue )
 		 else 
                       CHANNEL(icell,iue).pathLoss = GenerateLOSPathLoss(sys,icell,ue(iue));
 		      CHANNEL(icell,iue).shadow = randn()*ch.LOSSF;
+		        
+                      [smallScale] = GenerateLOSSmallScale(sys,ch,cell(icell),ue(iue)); 
+		      CHANNEL(icell,iue).subpathAoA = smallScale.subpathAoA;
+		      CHANNEL(icell,iue).subpathAoD = smallScale.subpathAoD;
+		      CHANNEL(icell,iue).subpathZoA = smallScale.subpathZoA;
+		      CHANNEL(icell,iue).subpathZoD = smallScale.subpathZoD;
+		      CHANNEL(icell,iue).PathPw = smallScale.PathPw; 
 		      
-                      [ smallScale ] =GenerateLOSSmallScale(sys,ch,cell(icell),ue(iue)); 
-		 end 
+		end 
             else
                 CHANNEL(icell,iue) = CHANNEL(icell-1,iue);
             end
@@ -55,6 +64,4 @@ function [ CHANNEL ] = ChannelInitial( sys,ch, Mo, cell,ue )
         end        
     end
     
-
-end
 

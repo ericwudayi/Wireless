@@ -24,8 +24,31 @@ for icell = 1:sys.cellNum
     PL = CH.pathLoss; 
     SF = CH.shadow;
     for ibeamBS = 1:BSbeamNum
-        temp_H = bsxfun(@times,BSAntWeights(:,ibeamBS),partH); % (NumCellAnt, 4*20, NumUEAnt)        
-        for ibeamUE = 1:UEbeamNum
+	if CH.P_LOS==0
+            temp_H = bsxfun(@times,BSAntWeights(:,ibeamBS),partH); % (NumCellAnt, 4*20, NumUEAnt)        
+	end
+	for ibeamUE = 1:UEbeamNum
+	    if CH.P_LOS==1
+		impulseResponse = sum(partH(:)); % (1, 4)
+
+		beamform_path_gain = 10*log10( (sum(abs(impulseResponse).^2)) ); %  impluse = complex strength            
+		signalPowerIndBm = sys.eNodeBPowerIndBm + sys.cellAntennaGain + beamform_path_gain + sys.ueAntennaGain -PL -SF ;
+		%{
+		disp(icell);
+		disp(ibeamBS);
+		disp(ibeamUE);
+		disp(signalPowerIndBm);
+		pause;
+		%}
+		signalStatus(icell,ibeamBS,ibeamUE) = signalPowerIndBm;
+		%find the highest power cell,beam combination
+                if(signalPowerIndBm > rssi)
+                    rssi = signalPowerIndBm;
+                    servingCellBeam = uint8([icell,ibeamBS,ibeamUE]);
+                end
+                continue;
+            end
+
             H = bsxfun(@times,UEAntWeights(1,ibeamUE,:),temp_H); % (NumCellAnt, 4*20, NumUEAnt)
             temp_impulse = sum(H,3); % (NumCellAnt, 4*20)
             %temp_impulse = sum(H(:,:,1),1); % for testing UE beamforming

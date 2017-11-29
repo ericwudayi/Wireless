@@ -14,10 +14,8 @@
                 
             else
                 CHANNEL(icell,uei.index) = CHANNEL(icell-1,uei.index);
-		if CHANNEL(icell,uei.index).P_LOS==0
-                    CHANNEL(icell,uei.index).dynamicSmallScale = CHANNEL(icell-1,uei.index).dynamicSmallScale;
-                end
-	    end
+                CHANNEL(icell,uei.index).dynamicSmallScale = CHANNEL(icell-1,uei.index).dynamicSmallScale;
+            end
             
             %--- Small scale ---
             % it seems that, "dynamicSmallScale"s for the three cells in
@@ -25,19 +23,10 @@
             
             
             % for the following 3 functions, they are different for each cell, because the parameters used of each "cell(icell)" is different.
-	    if CHANNEL(icell,uei.index).P_LOS==0 
-                channelEffect = GenerateDynamicChannelEffect(sys,ch, CHANNEL(icell,uei.index),cell(icell),uei);  %  (cellAntNum, (cluster*2) * subpath),  ueAntNum)
-	    [cellAntElementGainPattern, ueAntElementGainPattern] = GenerateDynamicAntElementGainPattern(sys, ch, CHANNEL(icell,uei.index), cell(icell),uei);  %  ((cluster*2)*subpath, 1)
+            channelEffect = GenerateDynamicChannelEffect(sys,ch, CHANNEL(icell,uei.index),cell(icell),uei);  %  (cellAntNum, (cluster*2) * subpath),  ueAntNum)
+            [cellAntElementGainPattern, ueAntElementGainPattern] = GenerateDynamicAntElementGainPattern(sys, ch, CHANNEL(icell,uei.index), cell(icell),uei);  %  ((cluster*2)*subpath, 1)
             CHANNEL(icell,uei.index).partH = GenerateDynamicPartH(sys,ch, channelEffect, cellAntElementGainPattern, ueAntElementGainPattern);
-	    else
-	    [cellAntElementGainPattern, ueAntElementGainPattern] = GenerateDynamicLOSAntElementGainPattern(sys, ch, CHANNEL(icell,uei.index), cell(icell),uei);  %  ((cluster*2)*subpath, 1)
-		
-	    channelEffect = GenerateDynamicLOSChannelEffect(sys,ch,CHANNEL(icell,uei.index),cell(icell),uei,cellAntElementGainPattern,ueAntElementGainPattern);
-            
-	    CHANNEL(icell,uei.index).partH = GenerateDynamicLOSPartH(sys,ch, channelEffect,CHANNEL(icell,uei.index), cellAntElementGainPattern, ueAntElementGainPattern);
-            
-            end
-
+        
         end
 
 

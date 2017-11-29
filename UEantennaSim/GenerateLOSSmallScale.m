@@ -3,7 +3,9 @@ function [ smallScale ] = GenerateLOSSmallScale(sys, ch,celli,uei )
 % small scale parameters: PathDelay, subpathAoA,AoD,EoA,EoD.
 
 BS = celli; UE = uei;
-
+distance2D = norm(sys.siteLocation(1:2)-uei.pos(1:2));
+h_ut = sys.ueHeight;
+h_bs = sys.siteLocation(3);
 clusterN = ch.LOSClusterNum;
 smallScale.clusterNum = ch.LOSClusterNum;
 
@@ -57,7 +59,7 @@ PathPw(1) = PathPw(1)+ K_factor/(K_factor+1);
 smallScale.PathDelay = PathDelay;
 smallScale.PathPw = PathPw;
 
-
+				 %S T E P 7
 
 %Generate central angle of AoA AoD AsA AsD
 %AOA, AOD
@@ -66,64 +68,55 @@ avergeAsA  = 10.^(-0.08*log10(1+sys.freq/10^9)+1.73);
 sigmalAsA  = 10.^(0.014*log10(1+sys.freq/10^9)+0.28);
 avergeAsD  = 10.^(-0.05*log10(1+sys.freq/10^9)+1.21);
 sigmalAsD  = 0.41;
-AoA_rms = ch.UErmsAngularSpread.Horiz
-AoD_rms = ch.BSrmsAngularSpread.Horiz
-smallScale.subpathAoA=GenerateSubpathPara(ch,avergeAsA,sigmalAsA ,P_pw,AoA_rms)
-smallScale.subpathAoD=GenerateSubpathPara(ch,avergeAsD,sigmalAsD ,P_pw,AoD_rms)
+distance2D = norm(sys.siteLocation(1:2)-uei.pos(1:2));
+% PHI for ue to site 
+phi_los    = angle((sys.siteLocation(1)-uei.pos(1)) + 1i*(sys.siteLocation(2)-uei.pos(2)));
+%{
+disp(phi_los);
+disp(sys.siteLocation(1));
+disp(uei.pos(1));
+disp(sys.siteLocation(2));
+disp(uei.pos(2));
+disp((sys.siteLocation(1)-uei.pos(1)) + 1i*(sys.siteLocation(2)-uei.pos(2)));
+pause;
+%}
+AoA_rms = ch.UErmsAngularSpread.Horiz;
+AoD_rms = ch.BSrmsAngularSpread.Horiz;
+smallScale.subpathAoA=GenerateSubpathPara(ch,avergeAsA,sigmalAsA ,P_pw,AoA_rms,phi_los);
+smallScale.subpathAoD=GenerateSubpathPara(ch,avergeAsD,sigmalAsD ,P_pw,AoD_rms,phi_los);
 
+%Cauculate ZsA ZsD ZoA ZoD
 avergeZsA  = 10.^(-0.1*log10(1+sys.freq/10^9)+0.73);
 sigmalZsA  = 10.^(-0.04*log10(1+sys.freq/10^9)+0.34);
-%avergeZsD  = 10.^(-0.05*log10(1+sys.freq/10^9)+1.21);
-%sigmalZsD  = 0.41;
-ZoA_rms = ch.UErmsAngularSpread.Vert
-%ZoD_rms = ch.BSrmsAngularSpread.Vert
-smallScale.subpathZoA=GenerateSubpathPara2(ch,avergeZsA,sigmalZsA ,P_pw,ZoA_rms)
-%smallScale.subpathZoD=GenerateSubpathPara2(ch,avergeZsD,sigmalZsD ,P_pw,ZoD_rms)
-%{
-LOS_C = 1.035-0.028*K_factor-0.002*K_factor^2+0.0001*K_factor^3;
-C_phi = 0.860*LOS_C;  %0.860 for 5 clusters
-ASA = normrnd(avergeAsA,sigmalAsA,[1 clusterN]);
-ASD = normrnd(avergeAsD,sigmalAsD,[1 clusterN]);
-
-centralAoA = 2*ASA/1.4*sqrt(log(P_pw/max(P_pw)))/C_phi;
-centralAoD = 2*ASD/1.4*sqrt(log(P_pw/max(P_pw)))/C_phi;
-
-% Some special parameter for LOS
-X_n = rand([1 clusterN]);
-X_n(X_n>0.5)=1;
-X_n(X_n<=0.5)=-1;
-Y_n = normrnd(0,(ASA/7)^2);
-%AoA for general case
-centralAoA = centralAoA.*X_n + Y_n
-% Some special parameter for LOS
-X_n = rand([1 clusterN]);
-X_n(X_n>0.5)=1;
-X_n(X_n<=0.5)=-1;
-Y_n = normrnd(0,(ASD/7)^2);
-%AoA for general case
-centralAoD = centralAoD.*X_n + Y_n
-
-%AoA for LOS , which means the first cluster is LOS:
-centralAoA = centralAoA - centralAoA(1);
-centralAoD = centralAoD - centralAoD(1);
-smallScale.centralAoA = centralAoA;
-smallScale.centralAoD = centralAoD;
+avergeZsD  = max(10.^-0.21,10.^(-14.8*distance2D/1000+0.01*(h_bs-h_ut)+0.83));
+sigmalZsD  = 10.^0.35;
+%theta from uei to site
+THETA_LOS = pi/2 - angle( distance2D + (sys.siteLocation(3)-uei.pos(3) )*1i) ;
+ZoA_rms = ch.UErmsAngularSpread.Vert;
+centralPara=GenerateSubpathPara2(ch,avergeZsA,sigmalZsA ,P_pw ,THETA_LOS);
 ray_offset_angle_range = [0.0447 -0.0447 0.1413 -0.1413 0.2492 -0.2492 0.3715 -0.3715 0.5129 -0.5129 0.6797 -0.6797 0.8844 -0.8844 1.1481 -1.1481 1.5195 -1.5195 2.1551 -2.1551];
-
-for i = 1:clusterN 
-        smallScale.subpathAoA(i,:) = smallScale.centralAoA(i) + ch.UErmsAngularSpread.Horiz * ray_offset_angle_range;
-        smallScale.subpathAoD(i,:) = smallScale.centralAoD(i) + ch.BSrmsAngularSpread.Horiz * ray_offset_angle_range;
-        
+for i = 1:clusterN
+        smallScale.subpathZoA(i,:) = centralPara(i) + ZoA_rms * ray_offset_angle_range;
 end
-%}
-function [subpathPara]=GenerateSubpathPara(ch,averge , sigmal , P_pw, rms)
-K_factor = ch.K
+
+
+centralPara = GenerateSubpathPara2(ch,avergeZsD,sigmalZsD ,P_pw,THETA_LOS);
+u_offset = 0; % in UMi 
+centralPara = centralPara + u_offset;
+
+for i = 1:clusterN
+        smallScale.subpathZoD(i,:) = centralPara(i) + 3/8 *(avergeZsD)*ray_offset_angle_range;
+
+end
+
+function [subpathPara]=GenerateSubpathPara(ch,averge , sigmal , P_pw, rms,phi_los)
+K_factor = ch.K;
 clusterN = ch.LOSClusterNum;
 LOS_C = 1.035-0.028*K_factor-0.002*K_factor^2+0.0001*K_factor^3;
 C_phi = 0.860*LOS_C;  %0.860 for 5 clusters
 Para = normrnd(averge,sigmal,[1 clusterN]);
 
-centralPara = 2/1.4*Para.*sqrt(log(P_pw/max(P_pw)))/C_phi;
+centralPara = 2/1.4*Para.*sqrt(-log(P_pw/max(P_pw)))/C_phi;
 
 % Some special parameter for LOS
 X_n = rand([1 clusterN]);
@@ -131,9 +124,9 @@ X_n(X_n>0.5)=1;
 X_n(X_n<=0.5)=-1;
 Y_n = normrnd(0,(Para/7).^2);
 %AoA for general case
-centralPara = centralPara.*X_n + Y_n
+centralPara = centralPara.*X_n + Y_n + phi_los;
 
-centralPara = centralPara - centralPara(1);
+centralPara = centralPara - centralPara(1) + phi_los;
 ray_offset_angle_range = [0.0447 -0.0447 0.1413 -0.1413 0.2492 -0.2492 0.3715 -0.3715 0.5129 -0.5129 0.6797 -0.6797 0.8844 -0.8844 1.1481 -1.1481 1.5195 -1.5195 2.1551 -2.1551];
 
 for i = 1:clusterN 
@@ -141,8 +134,8 @@ for i = 1:clusterN
         
 end
 
-function [subpathPara]=GenerateSubpathPara2(ch,averge , sigmal , P_pw, rms)
-K_factor = ch.K
+function [centralPara]=GenerateSubpathPara2(ch,averge , sigmal , P_pw ,t_los)
+K_factor = ch.K;
 clusterN = ch.LOSClusterNum;
 LOS_C = 1.3086+0.0339*K_factor-0.0077*K_factor^2+0.0002*K_factor^3;
 C_phi = 0.860*LOS_C;  %0.860 for 5 clusters
@@ -156,16 +149,9 @@ X_n(X_n>0.5)=1;
 X_n(X_n<=0.5)=-1;
 Y_n = normrnd(0,(Para/7).^2);
 %AoA for general case
-centralPara = centralPara.*X_n + Y_n
+centralPara = centralPara.*X_n + Y_n + t_los;
 
-centralPara = centralPara - centralPara(1);
-ray_offset_angle_range = [0.0447 -0.0447 0.1413 -0.1413 0.2492 -0.2492 0.3715 -0.3715 0.5129 -0.5129 0.6797 -0.6797 0.8844 -0.8844 1.1481 -1.1481 1.5195 -1.5195 2.1551 -2.1551];
-
-for i = 1:clusterN 
-        subpathPara(i,:) = centralPara(i) + rms * ray_offset_angle_range;
-        
-end
-
+centralPara = centralPara - centralPara(1) + t_los;
 
 function y  = laprnd(m, n, mu, sigma)
 %LAPRND generate i.i.d. laplacian random number drawn from laplacian distribution

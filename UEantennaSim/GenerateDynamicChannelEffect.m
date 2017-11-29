@@ -141,15 +141,15 @@ PhaseDifference_BetweenScatterers = exp(1i*phi*distS2S); % (4*20, 1)
 tmp_effect = bsxfun(@times, PhaseDifference_BetweenScatterers.', tmp_effect);
 
 % mobility side
+velocity = uei.speed*norm(rand(3,1));
 speedEffect = exp(1i*phi*channeli.MoveDistApproachScatter);    % ((NumPathStart+NumPathEnd)*NumSubPath, 1)  % (4 * 20, 1) 
-
  %(1, 4*20, 1)
-
 channelEffect = bsxfun(@times, tmp_effect, speedEffect.');    % (cellNumAnt, ((NumPathStart+NumPathEnd)*NumSubPath), UENumAnt)  
                                                                   % (64, 4 * 20, 16)
 
 
-
+%disp(Cell.antennaPos);
+%pause;
 
                                                                   
 end

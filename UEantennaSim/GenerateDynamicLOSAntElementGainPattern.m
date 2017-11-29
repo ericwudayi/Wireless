@@ -1,4 +1,4 @@
-function [ cellAntElementFieldPattern, ueAntElementFieldPattern ] = GenerateDynamicAntElementGainPattern( sys, ch, channeli, celli,uei )
+function [ cellAntElementFieldPattern, ueAntElementFieldPattern ] = GenerateDynamicLOSAntElementGainPattern( sys, ch, channeli, celli,uei )
 % Generate Ant gain  of each subpath.
 
 % Step1 -- Generate "the included angle" between (Ant array boresight) and each (subpath)
@@ -24,47 +24,37 @@ ueHorizBoresight = uei.BoresightAngle;
 InclinationAngle = sys.cellAntennaInclinationAngle;
 cellVertiBoresight = 90+InclinationAngle;
 
+UsedAoD = channeli.subpathAoD;
 
-
-
-
-
-                                                                             
-                                                                              
-                                                                              
-
-UsedAoD = [channeli.scatter1.subpathAoD; channeli.scatter2.subpathAoD];
-UsedAoD = reshape(UsedAoD.',NumPath*NumSubPath*2,1);
-
-UsedEoD = [channeli.scatter1.subpathEoD; channeli.scatter2.subpathEoD];
-UsedEoD = reshape(UsedEoD.',NumPath*NumSubPath*2,1);
-
-%disp(UsedAoD);
-%pause;
+UsedEoD = channeli.subpathZoD;
 
 shiftAngleInd = find((UsedAoD-cellHorizBoresight) < -180);
-UsedAoD(shiftAngleInd,1) = UsedAoD(shiftAngleInd,1) + 360;
+UsedAoD(shiftAngleInd) = UsedAoD(shiftAngleInd) + 360;
 
-shiftAngleInd = find((UsedAoD-cellHorizBoresight) > 180);
-UsedAoD(shiftAngleInd,1) = UsedAoD(shiftAngleInd,1) - 360;
+shiftAngleInd = find((UsedAoD-cellVertiBoresight) > 180);
+UsedAoD(shiftAngleInd) = UsedAoD(shiftAngleInd) - 360;
 
 A_EH_cell = antennaGain(UsedAoD-cellHorizBoresight,BSHPBW,BSMaxAttenu); % (NumPath*NumSubPath*2, 1)
 %please make sure UsedEoD-cellVertiBoresight will not exceed +-180
 A_EV_cell = antennaGain(UsedEoD-cellVertiBoresight,BSHPBW,BSMaxAttenu); % (NumPath*NumSubPath*2, 1)
+%disp("===============================================");
+%disp(A_EH_cell);
+%disp(A_EV_cell);
+%pause;
 tmpcellAntGainPattern3D = -min(-( A_EH_cell+A_EV_cell ), BSMaxAttenu);
 tmpcellAntGainPattern3D = ( 10.^( tmpcellAntGainPattern3D/10 ) ).^0.5;
 
 
 cellAntElementFieldPattern = tmpcellAntGainPattern3D.'; %(1, NumPath*NumSubPath*2 )
 
-UsedEoA = channeli.dynamicSmallScale.subpathEoA;
-UsedAoA = channeli.dynamicSmallScale.subpathAoA;
+UsedEoA = channeli.subpathZoA;
+UsedAoA = channeli.subpathAoA;
 
 UEshiftAngleInd = find((UsedAoA-ueHorizBoresight) < -90);
-UsedAoA(UEshiftAngleInd,1) = UsedAoA(UEshiftAngleInd,1) + 180;
+UsedAoA(UEshiftAngleInd) = UsedAoA(UEshiftAngleInd) + 180;
 
 UEshiftAngleInd = find((UsedAoA-ueHorizBoresight) > 90);
-UsedAoA(UEshiftAngleInd,1) = UsedAoA(UEshiftAngleInd,1) - 180;
+UsedAoA(UEshiftAngleInd) = UsedAoA(UEshiftAngleInd) - 180;
 
 A_EH_UE = antennaGain(UsedAoA-ueHorizBoresight,UEHPBW,ueMaxAttenu); % (NumPath*NumSubPath*2, 1)
 A_EV_UE = antennaGain(UsedEoA-90,UEHPBW,ueMaxAttenu);

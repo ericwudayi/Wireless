@@ -18,9 +18,9 @@ isite = 1;
     for iue = 1:sys.siteUENum    
         index = (isite-1)*sys.siteUENum + iue;
         
-       
-       
-           
+        if CHANNEL(1,iue).P_LOS ==1 
+           continue;
+        end   
             
                 % just do it when starting at startPoint
                 if (UE(index).state == 1)

@@ -16,22 +16,25 @@ ConfigSYS.siteLocation = ...
    
     %noisedBm = 10*log10(ConfigSYS.bandwidth) + ConfigSYS.GaussianNoiseIndBm;
    
-   %{ 
+    
     for timeSlot = 1:ConfigMo.totalTimeSlots  % 1 timeslot = timelength (s)     
         
-       
+      	 
         [UE, CHANNEL] = UpdateUEState(ConfigSYS,ConfigCH,ConfigMo,UE,CHANNEL); % UE moving, update UE position and doppler phase
-        for iue = 1:ConfigSYS.totalUENum            
-            if (UE(iue).state == 1)  % state == 1 means that UE is going to leave the "old EndPoint"(new startPoint)            
-                CHANNEL = NewChannel(ConfigSYS,ConfigCH,CELL,UE(iue),CHANNEL);                            
-            else
+        
+	
+	for iue = 1:ConfigSYS.totalUENum
+	            
+            %if (UE(iue).state == 1)  % state == 1 means that UE is going to leave the "old EndPoint"(new startPoint)            
+             %   CHANNEL = NewChannel(ConfigSYS,ConfigCH,CELL,UE(iue),CHANNEL);                            
+            %else
                   [ CHANNEL, UE(iue) ] = InterpolateDynamicChannel(ConfigSYS,ConfigCH,ConfigMo,CELL,UE(iue),CHANNEL);
-            end
+	    %end
             
             [ UE(iue).servingCellBeam, UE(iue).signalStatus, UE(iue).rssi, CELL] = DynamicAssociation(ConfigSYS,ConfigCH,UE(iue),CHANNEL,CELL,BSAntWeights,UEAntWeights);
         end
-        
-     %}
+    end        
+     
         
         %add ref & scheduling
         
@@ -64,4 +67,4 @@ ConfigSYS.siteLocation = ...
    
 %    refUEN = BSREC.referUEN;
 %    outputCQI = BSREC.CQI;
-    end
+

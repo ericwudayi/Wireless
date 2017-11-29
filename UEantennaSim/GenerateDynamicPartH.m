@@ -22,6 +22,7 @@ end                                                     % (1, 4*20, 16)         
 %(64, 4*20, 16)
 
 
-
+%disp(DynamicPartH);
+%pause;
 end
 
