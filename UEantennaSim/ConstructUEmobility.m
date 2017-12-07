@@ -19,7 +19,7 @@ tmp_antennaPos2Vel = zeros(rowNum, columnNum, 3);
 
 %add new distr
 dist_limit_min = sys.dist_limit_min;
-dist_limit_max = 20;
+dist_limit_max = 100;
 phi_limit_min = 0;
 phi_limit_max = 360;
 %add new distr

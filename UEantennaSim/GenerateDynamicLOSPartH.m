@@ -30,7 +30,20 @@ for iNumUEAnt = 1: NumUEAnt
     DynamicPartH(iNumUEAnt,iNumCellAnt,:) = sqrt(CHANNEL.PathPw/NumSubPath).*sum(tmp2,1);
     end
     
-end                                                     % (64, 4*20, 1)                    (4*20, 1)
+end                              
+%{
+	LOS normalize factor
+%}
+
+for iNumUEAnt = 1 : NumUEAnt
+    for iNumCellAnt = 1 : NumCellAnt
+        DynamicPartH(iNumUEAnt,iNumCellAnt,:) = DynamicPartH(iNumUEAnt,iNumCellAnt,:)/ sqrt(ch.K+1);
+        DynamicPartH(iNumUEAnt,iNumCellAnt,1) = DynamicPartH(iNumUEAnt,iNumCellAnt,1)*sqrt(ch.K);
+    end
+end
+        
+
+                       % (64, 4*20, 1)                    (4*20, 1)
 
 %disp(DynamicPartH);
 %pause;

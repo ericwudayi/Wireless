@@ -12,7 +12,7 @@ TotalSites=[];
 UE  = ConstructUEmobility(sys,Mo);
 pos(1,:) = [ 0 , 0 ];
 for row = 2 : 5
-    radius = 30 * rand ;
+    radius = 100 * rand ;
     theta = 2 * pi * rand;
     pos(row , : )= [radius * cos(theta) , radius * sin(theta) ];
 	%pos(row,:) = [ 0 , 0 ];
@@ -52,7 +52,9 @@ noisedBm = 10*log10(sys.bandwidth) + sys.GaussianNoiseIndBm + sys.noiseFigure;
 
 for uei=1:n(2)
 	UE_SINR(1,uei).SINR=[];
-	inter=0;
+	UE_SINR(1,uei).timer=[];
+	UE_SINR(1,uei).startTime = 10^5; % This is a value test for no transmit
+	%UE_SINR(1,uei).inter=0;
 	uei_signal = 0;
 	site = 0;
 	if uei>n(2)/2
@@ -333,15 +335,16 @@ engine.time_last_event=engine.sim_time;
 
 uei = engine.uei_arrival(1);
 noisedBm = 10*log10(sys.bandwidth) + sys.GaussianNoiseIndBm + sys.noiseFigure;
-[bit_rate , Csensing,SINR]= speed(SimEngine,UE_SINR,uei,noisedBm);
+[bit_rate , Csensing,SINR,inter]= speed(SimEngine,UE_SINR,uei,noisedBm);
 %if Csensing >-100
 if bit_rate==0
 	q_pointer=2;
 	temp_uei=uei;
 	while bit_rate==0&& q_pointer <  engine.num_in_q
 		temp_uei = engine.uei_arrival(q_pointer);
-		[bit_rate,Csensing,SINR]=speed(SimEngine,UE_SINR,temp_uei,noisedBm);
-		q_pointer= q_pointer +1;
+		[bit_rate,Csensing,SINR,inter]=speed(SimEngine,UE_SINR,temp_uei,noisedBm);
+		
+                q_pointer= q_pointer +1;
 		if q_pointer==10
 			break;
 		end
@@ -451,6 +454,7 @@ engine = SimEngine{sim_site,sim_sector};
 engine.time_last_event=engine.sim_time;
 disp(engine.sim_time);
 UE_arrival(uei) = engine.sim_time+exprnd(0.5);
+UE_SINR(1,uei).package = 0.1;
 if engine.server_status == engine.BUSY
     engine.num_in_q = engine.num_in_q+1;
     engine.time_arrival(engine.num_in_q) = engine.sim_time;
@@ -462,13 +466,18 @@ else
     engine.servingUei = uei;
     engine.server_status = engine.BUSY;
     noisedBm = 10*log10(sys.bandwidth) + sys.GaussianNoiseIndBm + sys.noiseFigure;
-    [bit_rate ,Csensing,SINR] = speed(SimEngine,UE_SINR,uei,noisedBm)
+    [bit_rate ,Csensing,SINR,inter] = speed(SimEngine,UE_SINR,uei,noisedBm);
+      
     UE_SINR(1,uei).SINR=[UE_SINR(1,uei).SINR log10(SINR)*10];
     if bit_rate== 0
 		UE_depart(uei)=engine.sim_time+0.02;
 		engine.FaultNum = engine.FaultNum + 1;
     else
+		UE_SINR(1,uei).package = 0.1;
+		UE_SINR(1,uei).startTime = engine.sim_time;
         	UE_depart(uei)=engine.sim_time+0.1/bit_rate;
+                UE_SINR(1,uei).inter = inter; 
+		[UE_SINR UE_depart]= UpdateSINR (engine.beaming,UE_SINR,UE_depart,engine.sim_time,uei,-1,noisedBm);
 		engine.Throughput = engine.Throughput+0.1;	
     end
 
@@ -483,20 +492,30 @@ isector = UE_SINR(1,uei).site(2);
 engine = SimEngine{isite,isector};
 engine.time_last_event=engine.sim_time;
 UE_depart(uei)=1.0e+30;
+UE_SINR(1,uei).startTime = 10^5;
+noisedBm = 10*log10(sys.bandwidth) + sys.GaussianNoiseIndBm + sys.noiseFigure;
 if engine.num_in_q==0
 	disp("num_in_q==0");
 	engine.server_status = engine.IDLE;
+	[UE_SINR UE_depart]= UpdateSINR (engine.beaming,UE_SINR,UE_depart,engine.sim_time,-1,uei,noisedBm);
 else
 	engine.num_in_q=engine.num_in_q-1;
 	engine.delay = engine.sim_time - engine.time_arrival(1);
+        if engine.delay<0
+           disp(engine.delay);
+           disp(uei);
+           disp(engine.sim_time);
+           pause;
+        end
 	engine.total_of_delays = engine.total_of_delays + engine.delay;
-	noisedBm = 10*log10(sys.bandwidth) + sys.GaussianNoiseIndBm + sys.noiseFigure;
-	uei = engine.uei_arrival(1);
+	uei_d = uei;
+        uei = engine.uei_arrival(1);
+        UE_SINR(1,uei).startTime = engine.sim_time;
 	engine.servingUei =uei;
-    engine.beaming = UE_SINR(1,uei).servingBeam;
-	[bit_rate, Csensing,SINR]= speed(SimEngine,UE_SINR,uei,noisedBm);
+        engine.beaming = UE_SINR(1,uei).servingBeam;
+	[bit_rate, Csensing,SINR,inter]= speed(SimEngine,UE_SINR,uei,noisedBm);
 	UE_SINR(1,uei).SINR=[UE_SINR(1,uei).SINR log10(SINR)*10];
-
+        UE_SINR(1,uei).inter = inter;
     if bit_rate== 0
         UE_depart(uei)=engine.sim_time+0.02;
 	engine.FaultNum = engine.FaultNum + 1;
@@ -504,13 +523,14 @@ else
         UE_depart(uei)=engine.sim_time+0.1/bit_rate;
 	engine.Throughput = engine.Throughput+0.1;	
     end
+	[UE_SINR UE_depart]= UpdateSINR (engine.beaming,UE_SINR,UE_depart,engine.sim_time,uei,uei_d,noisedBm);
 
     engine.time_arrival = engine.time_arrival(2:end);
     engine.uei_arrival = engine.uei_arrival(2:end);
 	
 end;
 SimEngine{isite,isector}=engine;
-function [bit_rate,Csensing,SINR] = speed(SimEngine,UE_SINR,uei,noisedBm)
+function [bit_rate,Csensing,SINR,inter] = speed(SimEngine,UE_SINR,uei,noisedBm)
 
 SizeSim = size(SimEngine);
 
@@ -554,6 +574,76 @@ end
 Csensing = log10(Csensing) *10;
 disp("bit_rate");
 disp(bit_rate);
+
+%{
+    update SINR due to depart or arrive
+%}
+%{
+function [UE_SINR index] = UpdateTimer (UE_SINR,sim_time)
+
+UE_time = [UE_SINR(1,:).startTime];
+
+index = find(UE_time<sim_time);
+Size = size(index);
+for i =1 :Size(2)
+time = sim_time - UE_time(1,index(i)).startTime;
+UE_SINR(1,index(i)).timer = [UE_SINR(1,index(i)).timer time];
+end
+%}
+function[UE_SINR UE_depart] =UpdateSINR(beam,UE_SINR,UE_depart,sim_time,uei_a,uei_d,noisedBm)
+
+UE_time = [UE_SINR(1,:).startTime];
+
+activeUE = find(UE_time<sim_time);
+Size = size(activeUE);
+for i =1 :Size(2)
+    time = sim_time - UE_SINR(1,activeUE(i)).startTime;
+    UE_SINR(1,activeUE(i)).timer = [UE_SINR(1,activeUE(i)).timer time];
+    bit_rate = UE_SINR(1,activeUE(i)).SINR;
+    bit_rate = bit_rate(end);
+    bit_rate = log2(1+10.^(bit_rate/10));
+    %disp(bit_rate);
+    %%pause;
+    UE_SINR(1,activeUE(i)).package = UE_SINR(1,activeUE(i)).package -bit_rate*time;
+    UE_SINR(1,activeUE(i)).startTime = sim_time;
+end
+NumUei = size(UE_SINR(1,:));
+NumUei = NumUei(2);
+if uei_a ~= -1
+    site = UE_SINR(1,uei_a).site(1);
+    sector = UE_SINR(1,uei_a).site(2);
+
+    for i = 1:Size(2)
+        rssi = 10^((UE_SINR(1,activeUE(i)).rssi)/10);
+        ant = UE_SINR(1,activeUE(i)).ueant;
+        signal = UE_SINR(site,activeUE(i)).signalStatus;
+	add_inter = 10.^(signal(sector,beam,ant)/10);
+        UE_SINR(1,activeUE(i)).inter = UE_SINR(1,activeUE(i)).inter + add_inter;
+   end
+end
+if uei_d ~= -1
+     site = UE_SINR(1,uei_d).site(1);
+     sector = UE_SINR(1,uei_d).site(2);
+
+     for i = 1:Size(2)
+        rssi = 10^((UE_SINR(1,activeUE(i)).rssi)/10);
+        ant = UE_SINR(1,activeUE(i)).ueant;
+        signal = UE_SINR(site,activeUE(i)).signalStatus;
+        add_inter = 10.^(signal(sector,beam,ant)/10);
+        UE_SINR(1,activeUE(i)).inter = UE_SINR(1,activeUE(i)).inter - add_inter;
+   end
+end
+
+for i=1:Size(2)
+    inter = UE_SINR(1,activeUE(i)).inter;
+    SINR = rssi/(inter+(10^(noisedBm/10)));
+    bit_rate = log2(1+SINR);
+    UE_SINR(1,activeUE(i)).SINR = [UE_SINR(1,activeUE(i)).SINR log10(SINR)*10];
+    UE_depart(activeUE(i)) = sim_time+UE_SINR(1,activeUE(i)).package/bit_rate;
+
+end    
+
+
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
